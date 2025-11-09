@@ -1,6 +1,5 @@
-﻿using MassTransit;
-using Domain.Models; // քո Note model-ը
-using Microsoft.EntityFrameworkCore;
+﻿using Domain.Models; // քո Note model-ը
+using MassTransit;
 
 namespace Healthcare.NoteConsumer;
 
@@ -16,7 +15,7 @@ public class NoteCreatedConsumer : IConsumer<NoteCreatedMessage>
     public async Task Consume(ConsumeContext<NoteCreatedMessage> context)
     {
         var msg = context.Message;
-        Console.WriteLine($"📩 Received note for appointment {msg.AppointmentId}: {msg.Text}");
+        Console.WriteLine($"Received note for appointment {msg.AppointmentId}: {msg.Text}");
 
         var note = new Note
         {

@@ -22,7 +22,7 @@ namespace ClinicAppointment.Controllers
 
         }
 
-        // ✅ Բժիշկը ավելացնում է իր ազատ ժամերը
+
         [Authorize(Roles = "Doctor")]
         [HttpPost("generate-slots")]
         public async Task<IActionResult> GenerateSlots([FromBody] CreateSlotDto dto)
@@ -31,12 +31,17 @@ namespace ClinicAppointment.Controllers
             if (userIdClaim == null)
                 return Unauthorized("User not found.");
 
-            var doctor = await _dbContext.Doctors.FirstOrDefaultAsync(d => d.AppUserId == int.Parse(userIdClaim));
-            if (doctor == null)
-                return BadRequest("Doctor profile not found.");
+            int appUserId = int.Parse(userIdClaim);
 
-            await _slotGenerator.GenerateSlotsAsync(doctor.Id, dto.StartUtc, dto.EndUtc);
-            return Ok(new { Message = "Slots generated successfully." });
+            var (success, message) = await _slotGenerator.GenerateSlotsForCurrentDoctorAsync(
+                appUserId,
+                dto.StartUtc,
+                dto.EndUtc);
+
+            if (!success)
+                return BadRequest(new { message });
+
+            return Ok(new { message });
         }
 
 

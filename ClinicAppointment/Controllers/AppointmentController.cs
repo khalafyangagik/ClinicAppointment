@@ -1,5 +1,4 @@
 ﻿using System.Security.Claims;
-using Application.Services;
 using Domain.DTOs;
 using Domain.IServices;
 using Microsoft.AspNetCore.Authorization;
@@ -71,7 +70,6 @@ public class AppointmentController : ControllerBase
         return Ok(list);
     }
 
-    // ✅ CANCEL appointment
     [Authorize(Roles = "Patient")]
     [HttpDelete("{id}/cancel")]
     public async Task<IActionResult> CancelAppointment(int id)

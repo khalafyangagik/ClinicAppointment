@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AutoMapper;
+using Domain.DTOs;
 using Domain.IRepository;
 using Domain.IServices;
 using Domain.Models;
@@ -17,17 +19,19 @@ namespace Application.Services
         private readonly IRepository<Appointment> _appointmentRepo;
         private readonly IRepository<Note> _noteRepo;
         private readonly ClinicDbContext _dbContext;
+        private readonly IMapper _mapper;
 
         public PatientService(
             IRepository<Patient> patientRepo,
             IRepository<Appointment> appointmentRepo,
             IRepository<Note> noteRepo,
-            ClinicDbContext dbContext)
+            ClinicDbContext dbContext,IMapper mapper)
         {
             _patientRepo = patientRepo;
             _appointmentRepo = appointmentRepo;
             _noteRepo = noteRepo;
             _dbContext = dbContext;
+            _mapper = mapper;
         }
 
         // ---------------- CRUD ----------------
@@ -39,12 +43,15 @@ namespace Application.Services
 
         public async Task<Patient?> GetByIdAsync(int id)
         {
+    
             return await _patientRepo.GetByIdAsync(id);
         }
 
-        public async Task<IEnumerable<Patient>> GetAllAsync()
+        public async Task<IEnumerable<PatientDto>> GetAllAsync()
         {
-            return await _patientRepo.GetAllAsync();
+            
+            var patients =  await _patientRepo.GetAllAsync();
+            return _mapper.Map<IEnumerable<PatientDto>>(patients);
         }
 
         public void Update(Patient patient)
@@ -59,11 +66,7 @@ namespace Application.Services
             _dbContext.SaveChanges();
         }
 
-        // ---------------- Business Logic ----------------
 
-        /// <summary>
-        /// Բերում է հիվանդի բոլոր appointments-ները էջավորված ձևով։
-        /// </summary>
         public async Task<IEnumerable<Appointment>> GetAppointmentsAsync(int patientId, int page = 1, int pageSize = 5)
         {
             var query = _dbContext.Appointments

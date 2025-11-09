@@ -1,4 +1,6 @@
-﻿using Domain.IServices;
+﻿using AutoMapper;
+using Domain.IServices;
+using Domain.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,10 +12,12 @@ namespace ClinicAppointment.Controllers
     public class PatientsController : ControllerBase
     {
         private readonly IPatientService _patientService;
+        private readonly IMapper _mapper;
 
-        public PatientsController(IPatientService patientService)
+        public PatientsController(IPatientService patientService,IMapper mapper)
         {
             _patientService = patientService;
+            _mapper = mapper;
         }
 
 

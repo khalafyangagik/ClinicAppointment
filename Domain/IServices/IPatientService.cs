@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Domain.DTOs;
 using Domain.Models;
 
 namespace Domain.IServices
@@ -13,7 +9,7 @@ namespace Domain.IServices
         // --- CRUD ---
         Task AddAsync(Patient patient);
         Task<Patient?> GetByIdAsync(int id);
-        Task<IEnumerable<Patient>> GetAllAsync();
+        Task<IEnumerable<PatientDto>> GetAllAsync();
         void Update(Patient patient);
         void Delete(Patient patient);
 

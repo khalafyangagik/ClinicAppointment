@@ -28,6 +28,10 @@ IHost host = Host.CreateDefaultBuilder(args)
 
                 cfg.ReceiveEndpoint("note-created-queue", e =>
                 {
+                    // 👇 Ասում ենք MassTransit-ին՝ կապիր այս queue-ն publisher-ի exchange-ին
+                    e.Bind("Domain.Messages:NoteCreatedMessage");
+
+                    // 👇 Ասում ենք՝ այս consumer-ը թող լսի տվյալ queue-ից եկող մեսիջները
                     e.ConfigureConsumer<NoteCreatedConsumer>(ctx);
                 });
             });

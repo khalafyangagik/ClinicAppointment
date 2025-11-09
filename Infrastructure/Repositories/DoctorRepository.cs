@@ -25,12 +25,16 @@ namespace Infrastructure.Repositories
 
         public async Task<IEnumerable<Doctor>> GetAllAsync()
         {
-            return await _dbcontext.Doctors.ToListAsync();
+            return await _dbcontext.Doctors
+                                   .Include(d => d.Clinic)
+                                   .ToListAsync();
         }
 
         public async Task<Doctor?> GetByIdAsync(int id)
         {
-            return await _dbcontext.Doctors.FindAsync(id);
+            return await _dbcontext.Doctors
+                                   .Include(d => d.Clinic)
+                                   .FirstOrDefaultAsync(d => d.Id == id);
         }
 
         public void Update(Doctor entity)

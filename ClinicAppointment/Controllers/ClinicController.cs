@@ -1,4 +1,5 @@
-﻿using Domain.DTOs;
+﻿using System.Security.Claims;
+using Domain.DTOs;
 using Domain.IServices;
 using Domain.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -45,7 +46,7 @@ namespace ClinicAppointment.Controllers
         public async Task<IActionResult> Update(int id, [FromBody] Clinic clinic)
         {
             if (id != clinic.Id) return BadRequest();
-            _clinicService.UpdateAsync(clinic);
+            await _clinicService.UpdateAsync(clinic);
             return NoContent();
         }
 
@@ -53,10 +54,15 @@ namespace ClinicAppointment.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userIdClaim == null)
+                return Unauthorized("User not found.");
+
             var clinic = await _clinicService.GetByIdAsync(id);
             if (clinic == null) return NotFound();
 
-            _clinicService.DeleteAsync(clinic);
+            await _clinicService.DeleteAsync(clinic);
             return NoContent();
         }
     }

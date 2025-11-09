@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Domain.Models;
+﻿using Domain.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -49,9 +44,9 @@ namespace Infrastructure.DbContextFolder
 
             // Doctor ↔ Patient (implicit N:M)
             b.Entity<Doctor>()
-     .HasMany(d => d.Patients)
-     .WithMany(p => p.Doctors)
-     .UsingEntity<Dictionary<string, object>>(
+                .HasMany(d => d.Patients)
+                .WithMany(p => p.Doctors)
+                .UsingEntity<Dictionary<string, object>>(
          "DoctorPatients",
          j => j
              .HasOne<Patient>()
@@ -106,6 +101,12 @@ namespace Infrastructure.DbContextFolder
             b.Entity<Appointment>()
                 .HasIndex(a => new { a.DoctorId, a.StartUtc })
                 .IsUnique();
+
+            b.Entity<Appointment>()
+       .HasOne(a => a.Patient)
+       .WithMany(p => p.Appointments)
+       .HasForeignKey(a => a.PatientId)
+       .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

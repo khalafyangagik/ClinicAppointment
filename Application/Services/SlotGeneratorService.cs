@@ -23,17 +23,26 @@ namespace Application.Services
             _logger = logger;
         }
 
-        public async Task GenerateSlotsAsync(int doctorId, DateTime startUtc, DateTime endUtc)
+        public async Task<(bool Success, string Message)> GenerateSlotsForCurrentDoctorAsync(
+            int appUserId,
+            DateTime startUtc,
+            DateTime endUtc)
         {
-            var slots = new List<AvailabilitySlot>();
+            // 🔹 1️⃣ Գտնում ենք բժիշկին ըստ userId-ի
+            var doctor = await _dbContext.Doctors.FirstOrDefaultAsync(d => d.AppUserId == appUserId);
+            if (doctor == null)
+                return (false, "Doctor profile not found.");
 
+            // 🔹 2️⃣ Ստեղծում ենք slot-երը
+            var slots = new List<AvailabilitySlot>();
             DateTime current = startUtc;
+
             while (current < endUtc)
             {
-                var next = current.AddMinutes(30); // 30 րոպեանոց կտոր
+                var next = current.AddMinutes(30);
                 slots.Add(new AvailabilitySlot
                 {
-                    DoctorId = doctorId,
+                    DoctorId = doctor.Id,
                     StartUtc = current,
                     EndUtc = next,
                     IsBooked = false
@@ -41,8 +50,26 @@ namespace Application.Services
                 current = next;
             }
 
-            await _dbContext.AvailabilitySlots.AddRangeAsync(slots);
-            await _dbContext.SaveChangesAsync();
+            // 🔹 3️⃣ Պահպանում ենք բազայում
+            try
+            {
+                await _dbContext.AvailabilitySlots.AddRangeAsync(slots);
+                int saved = await _dbContext.SaveChangesAsync();
+
+                if (saved > 0)
+                {
+                    _logger.LogInformation("✅ {Count} slots generated for DoctorId {DoctorId}", slots.Count, doctor.Id);
+                    return (true, $"Successfully created {slots.Count} slots for doctor {doctor.FullName}.");
+                }
+
+                _logger.LogWarning("⚠️ No slots were saved for DoctorId {DoctorId}", doctor.Id);
+                return (false, "No slots were saved to database.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while saving slots for doctor {DoctorId}", doctor.Id);
+                return (false, "Failed to generate slots. Check logs for details.");
+            }
         }
 
         public async Task<(bool Success, string Message, object? Data)>
