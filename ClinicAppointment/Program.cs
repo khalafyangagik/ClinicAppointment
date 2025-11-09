@@ -1,17 +1,18 @@
 ﻿
 using System.Text;
+using Application.Helpers;
 using Application.Services;
 using Domain.IRepository;
 using Domain.IServices;
 using Domain.Models;
 using Infrastructure.DbContextFolder;
 using Infrastructure.Repositories;
+using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using MassTransit;
 
 
 namespace ClinicAppointment
@@ -21,11 +22,16 @@ namespace ClinicAppointment
         public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            var rabbitHost = Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "localhost";
+            var defaultConn = Environment.GetEnvironmentVariable("ConnectionStrings__Default")
+                             ?? builder.Configuration.GetConnectionString("Default");
+
+            // MassTransit
             builder.Services.AddMassTransit(x =>
             {
-                x.UsingRabbitMq((context, cfg) =>
+                x.UsingRabbitMq((ctx, cfg) =>
                 {
-                    cfg.Host("localhost", "/", h =>
+                    cfg.Host(rabbitHost, "/", h =>
                     {
                         h.Username("guest");
                         h.Password("guest");
@@ -85,9 +91,17 @@ namespace ClinicAppointment
             builder.Services.AddScoped<IDoctorService, DoctorService>();
             builder.Services.AddScoped<IPatientService, PatientService>();
             builder.Services.AddScoped<IAppointmentService, AppointmentService>();
+            builder.Services.AddScoped<IRegistrationService, RegistrationService>();
+            builder.Services.AddScoped<ISlotGeneratorService, SlotGeneratorService>();
 
-            builder.Services.AddControllers();
-   
+            builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler =
+            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.WriteIndented = true;
+    });
+
             builder.Services.AddEndpointsApiExplorer();
 
             builder.Services.AddSwaggerGen(c =>
@@ -134,54 +148,11 @@ namespace ClinicAppointment
             });
 
             var app = builder.Build();
+
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
-                var roleManager = services.GetRequiredService<RoleManager<IdentityRole<int>>>();
-                var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-
-                Console.WriteLine("⏳ Seeding roles and admin...");
-
-                var roles = new[] { "Admin", "Doctor", "Patient" };
-                foreach (var role in roles)
-                {
-                    if (!await roleManager.RoleExistsAsync(role))
-                    {
-                        await roleManager.CreateAsync(new IdentityRole<int>(role));
-                        Console.WriteLine($"✅ Role created: {role}");
-                    }
-                }
-
-                string adminEmail = "admin@clinic.com";
-                string adminPassword = "Admin_123";
-
-                var adminUser = await userManager.FindByEmailAsync(adminEmail);
-                if (adminUser == null)
-                {
-                    adminUser = new ApplicationUser
-                    {
-                        UserName = adminEmail,
-                        Email = adminEmail,
-                        EmailConfirmed = true
-                    };
-
-                    var result = await userManager.CreateAsync(adminUser, adminPassword);
-                    if (result.Succeeded)
-                    {
-                        await userManager.AddToRoleAsync(adminUser, "Admin");
-                        Console.WriteLine("🎯 Admin created successfully!");
-                    }
-                    else
-                    {
-                        Console.WriteLine("❌ Failed to create admin:");
-                        foreach (var err in result.Errors)
-                            Console.WriteLine($"   • {err.Description}");
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("⚠️ Admin already exists.");
-                }
+                await IdentitySeeder.SeedAsync(services);
             }
 
 

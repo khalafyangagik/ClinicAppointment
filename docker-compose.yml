@@ -1,46 +1,90 @@
-version: "3.9"
+name: clinic-appointment-stack
 
 services:
+  # 🧠 SQL Server Container
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver
     environment:
-      SA_PASSWORD: "YourStrong@Passw0rd"
-      ACCEPT_EULA: "Y"
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong@Passw0rd
     ports:
       - "1433:1433"
     volumes:
-      - sql_data:/var/opt/mssql
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pidof sqlservr || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
 
+  # 🐇 RabbitMQ Message Queue
   rabbitmq:
     image: rabbitmq:3-management
+    container_name: rabbitmq
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5672:5672"     # Broker port
+      - "15672:15672"   # Management UI
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
 
-  api:
+  # 🌐 ASP.NET Web API (ClinicAppointment)
+  clinic-api:
     build:
       context: .
-      dockerfile: Healthcare.API/Dockerfile
+      dockerfile: ClinicAppointment/Dockerfile
+    container_name: clinic-api
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - RABBITMQ_HOST=rabbitmq
-      - ConnectionStrings__Default=Server=sqlserver;Database=HealthcareDB;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_URLS: "https://+:8081;http://+:8080"
+      ASPNETCORE_Kestrel__Certificates__Default__Password: "yourcertpassword"
+      ASPNETCORE_Kestrel__Certificates__Default__Path: "/https/aspnetapp.pfx"
+      RABBITMQ_HOST: "rabbitmq"
+      ConnectionStrings__DefaultConnection: "Server=sqlserver;Database=ClinicDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;"
     ports:
       - "8080:8080"
+      - "8081:8081"
+    volumes:
+      - ./https:/https:ro
     depends_on:
-      - sqlserver
-      - rabbitmq
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - backend
 
-  noteconsumer:
+  # ⚙️ Worker Service (Healthcare.NoteConsumer)
+  note-consumer:
     build:
       context: .
       dockerfile: Healthcare.NoteConsumer/Dockerfile
+    container_name: note-consumer
     environment:
-      - RABBITMQ_HOST=rabbitmq
-      - ConnectionStrings__Default=Server=sqlserver;Database=HealthcareDB;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;
+      RABBITMQ_HOST: "rabbitmq"
+      ConnectionStrings__DefaultConnection: "Server=sqlserver;Database=ClinicDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;"
     depends_on:
-      - sqlserver
-      - rabbitmq
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - backend
 
+# 🧩 Shared Docker Network
+networks:
+  backend: {}
+
+# 💾 Persistent Storage for SQL Server
 volumes:
-  sql_data:
+  sqlserver_data: {}
+

@@ -1,19 +1,27 @@
-# ---- BUILD STAGE ----
+﻿# ---- BUILD STAGE ----
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-COPY Healthcare.API/Healthcare.API.csproj Healthcare.API/
+# copy csproj-երը՝ արագ restore-ի համար
+COPY ClinicAppointment/ClinicAppointment.csproj ClinicAppointment/
+COPY Application/Application.csproj Application/
 COPY Domain/Domain.csproj Domain/
-COPY Healthcare.Shared/Healthcare.Shared.csproj Healthcare.Shared/
-RUN dotnet restore Healthcare.API/Healthcare.API.csproj
+COPY Infrastructure/Infrastructure.csproj Infrastructure/
+RUN dotnet restore ClinicAppointment/ClinicAppointment.csproj
 
+# copy ամբողջ լուծումը և publish
 COPY . .
-RUN dotnet publish Healthcare.API/Healthcare.API.csproj -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish ClinicAppointment/ClinicAppointment.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 # ---- RUNTIME STAGE ----
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
-COPY --from=build /app/publish .
+
+# ENV-երը կարդացվում են Program.cs-ից
 ENV ASPNETCORE_URLS=http://+:8080
+ENV RABBITMQ_HOST=rabbitmq
+ENV ConnectionStrings__Default="Server=sqlserver;Database=HealthcareDB;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;"
+
+COPY --from=build /app/publish .
 EXPOSE 8080
-ENTRYPOINT ["dotnet", "Healthcare.API.dll"]
+ENTRYPOINT ["dotnet", "ClinicAppointment.dll"]

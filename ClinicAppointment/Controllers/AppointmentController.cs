@@ -1,165 +1,110 @@
 ﻿using System.Security.Claims;
+using Application.Services;
 using Domain.DTOs;
-using Domain.Models;
-using Infrastructure.DbContextFolder;
+using Domain.IServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
-namespace ClinicAppointment.Controllers
+[Authorize(Roles = "Doctor,Patient")]
+[ApiController]
+[Route("api/[controller]")]
+public class AppointmentController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class AppointmentController : ControllerBase
+
+    private readonly IAppointmentService _service;
+
+    public AppointmentController(IAppointmentService appointmentService)
     {
-        private readonly ClinicDbContext _dbContext;
+        _service = appointmentService;
+    }
 
-        public AppointmentController(ClinicDbContext dbContext)
+    [Authorize(Roles = "Patient")]
+    [HttpPost("create")]
+    public async Task<IActionResult> CreateAppointment([FromBody] CreateAppointmentDto dto)
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdClaim == null)
+            return Unauthorized("User not found in token.");
+
+        int userId = int.Parse(userIdClaim);
+
+        var result = await _service.CreateAppointmentAsync(dto, userId);
+        if (!result.Success)
+            return BadRequest(new { result.Message });
+
+        return Ok(new
         {
-            _dbContext = dbContext;
-        }
+            result.Message,
+            AppointmentId = result.Appointment!.Id,
+            result.Appointment.StartUtc,
+            result.Appointment.EndUtc
+        });
+    }
 
-        // ✅ BOOK APPOINTMENT (Transactional)
-        [Authorize(Roles = "Patient")]
-        [HttpPost("create")]
-        public async Task<IActionResult> CreateAppointment([FromBody] CreateAppointmentDto dto)
+    // ✅ DOCTOR — view appointments
+    [Authorize(Roles = "Doctor")]
+    [HttpGet("doctor")]
+    public async Task<IActionResult> GetDoctorAppointments([FromQuery] DateTime? date = null)
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdClaim == null)
+            return Unauthorized("User ID not found in token.");
+
+        int userId = int.Parse(userIdClaim);
+
+        var list = await _service.GetDoctorAppointmentsAsync(userId, date);
+        return Ok(list);
+    }
+
+    // ✅ PATIENT — view appointments
+    [Authorize(Roles = "Patient")]
+    [HttpGet("my")]
+    public async Task<IActionResult> GetPatientAppointments()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdClaim == null)
+            return Unauthorized("User ID not found in token.");
+
+        int userId = int.Parse(userIdClaim);
+
+        var list = await _service.GetPatientAppointmentsAsync(userId);
+        return Ok(list);
+    }
+
+    // ✅ CANCEL appointment
+    [Authorize(Roles = "Patient")]
+    [HttpDelete("{id}/cancel")]
+    public async Task<IActionResult> CancelAppointment(int id)
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdClaim == null)
+            return Unauthorized("User ID not found in token.");
+
+        int userId = int.Parse(userIdClaim);
+
+        var (success, message) = await _service.CancelAppointmentAsync(id, userId);
+        return success ? Ok(new { message }) : BadRequest(new { message });
+    }
+
+    [Authorize(Roles = "Patient,Doctor,Admin")]
+    [HttpPut("{appointmentId}/move-to-slot/{slotId}")]
+    public async Task<IActionResult> MoveAppointmentToSlot(int appointmentId, int slotId)
+    {
+        var result = await _service.UpdateAppointmentBySlotAsync(appointmentId, slotId);
+
+        if (!result.Success)
+            return BadRequest(new { result.Message });
+
+        return Ok(new
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userId == null) return Unauthorized("User ID not found in token.");
-
-            int appUserId = int.Parse(userId);
-            var patient = await _dbContext.Patients.FirstOrDefaultAsync(p => p.AppUserId == appUserId);
-            if (patient == null)
-                return BadRequest("Patient profile not found.");
-
-            // Ստուգում ենք slot-ը
-            var slot = await _dbContext.AvailabilitySlots.FirstOrDefaultAsync(s => s.Id == dto.SlotId);
-            if (slot == null)
-                return BadRequest("Selected slot not found.");
-
-            // Ստուգում ենք՝ ընտրված ժամերը ընկնում են slot-ի մեջ
-            if (dto.StartUtc < slot.StartUtc || dto.EndUtc > slot.EndUtc)
-                return BadRequest("Selected time is outside the doctor's available hours.");
-
-            // Ստուգում ենք՝ արդյոք տվյալ բժիշկը արդեն ունի appointment այդ ժամին
-            bool overlaps = await _dbContext.Appointments.AnyAsync(a =>
-                a.DoctorId == slot.DoctorId &&
-                ((dto.StartUtc >= a.StartUtc && dto.StartUtc < a.EndUtc) ||
-                 (dto.EndUtc > a.StartUtc && dto.EndUtc <= a.EndUtc)));
-
-            if (overlaps)
-                return BadRequest("This doctor already has an appointment at the selected time.");
-
-            // Ստեղծում ենք appointment
-            var appointment = new Appointment
+            result.Message,
+            AppointmentId = result.Updated!.Id,
+            NewSlot = new
             {
-                DoctorId = slot.DoctorId,
-                PatientId = patient.Id,
-                SlotId = slot.Id,
-                StartUtc = dto.StartUtc,
-                EndUtc = dto.EndUtc,
-                Status = "Reserved",
-                CreatedAtUtc = DateTime.UtcNow
-            };
-
-            await _dbContext.Appointments.AddAsync(appointment);
-            await _dbContext.SaveChangesAsync();
-
-            return Ok(new
-            {
-                Message = "Appointment booked successfully!",
-                DoctorId = slot.DoctorId,
-                PatientId = patient.Id,
-                StartUtc = dto.StartUtc,
-                EndUtc = dto.EndUtc
-            });
-        }
- // ✅ CANCEL APPOINTMENT
-        [Authorize(Roles = "Patient")]
-        [HttpDelete("{id}/cancel")]
-        public async Task<IActionResult> CancelAppointment(int id)
-        {
-            using var transaction = await _dbContext.Database.BeginTransactionAsync();
-            try
-            {
-                var appointment = await _dbContext.Appointments
-                    .Include(a => a.Slot)
-                    .FirstOrDefaultAsync(a => a.Id == id);
-
-                if (appointment == null)
-                    return NotFound("Appointment not found.");
-
-                if (appointment.Status == "Cancelled")
-                    return BadRequest("Appointment is already cancelled.");
-
-                // Cancel appointment
-                appointment.Status = "Cancelled";
-                appointment.Slot!.IsBooked = false;
-
-                _dbContext.Appointments.Update(appointment);
-                _dbContext.AvailabilitySlots.Update(appointment.Slot);
-                await _dbContext.SaveChangesAsync();
-
-                await transaction.CommitAsync();
-                return Ok(new { Message = "Appointment cancelled successfully." });
+                result.Updated.StartUtc,
+                result.Updated.EndUtc
             }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return StatusCode(500, new { Error = "Failed to cancel appointment.", ex.Message });
-            }
-        }
-
-        // ✅ DOCTOR: View their appointments
-        [Authorize(Roles = "Doctor")]
-        [HttpGet("doctor")]
-        public async Task<IActionResult> GetDoctorAppointments([FromQuery] DateTime? date = null)
-        {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userIdClaim == null)
-                return Unauthorized("User ID not found in token.");
-
-            var doctor = await _dbContext.Doctors
-                .FirstOrDefaultAsync(d => d.AppUserId == int.Parse(userIdClaim));
-
-            if (doctor == null)
-                return BadRequest("Doctor profile not found.");
-
-            IQueryable<Appointment> query = _dbContext.Appointments
-                .Include(a => a.Patient)
-                .Where(a => a.DoctorId == doctor.Id)
-                .OrderBy(a => a.StartUtc);
-
-            if (date.HasValue)
-                query = query.Where(a => a.StartUtc.Date == date.Value.Date);
-
-            var list = await query.ToListAsync();
-            return Ok(list);
-        }
-
-        // ✅ PATIENT: View their appointments
-        [Authorize(Roles = "Patient")]
-        [HttpGet("my")]
-        public async Task<IActionResult> GetMyAppointments()
-        {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userIdClaim == null)
-                return Unauthorized("User ID not found in token.");
-
-            var patient = await _dbContext.Patients
-                .FirstOrDefaultAsync(p => p.AppUserId == int.Parse(userIdClaim));
-
-            if (patient == null)
-                return BadRequest("Patient profile not found.");
-
-            var list = await _dbContext.Appointments
-                .Include(a => a.Doctor)
-                .Include(a => a.Slot)
-                .Where(a => a.PatientId == patient.Id)
-                .OrderByDescending(a => a.StartUtc)
-                .ToListAsync();
-
-            return Ok(list);
-        }
+        });
     }
 }
+    

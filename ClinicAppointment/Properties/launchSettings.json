@@ -15,9 +15,11 @@
       "launchBrowser": true,
       "launchUrl": "swagger",
       "applicationUrl": "http://localhost:5151",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
+        "environmentVariables": {
+            "ASPNETCORE_ENVIRONMENT": "Development",
+            "ADMIN_EMAIL": "admin@clinic.com",
+            "ADMIN_PASSWORD": "Admin_123"
+        }
     },
     "https": {
       "commandName": "Project",
@@ -25,17 +27,21 @@
       "launchBrowser": true,
       "launchUrl": "swagger",
       "applicationUrl": "https://localhost:7057;http://localhost:5151",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
+        "environmentVariables": {
+            "ASPNETCORE_ENVIRONMENT": "Development",
+            "ADMIN_EMAIL": "admin@clinic.com",
+            "ADMIN_PASSWORD": "Admin_123"
+        }
     },
     "IIS Express": {
       "commandName": "IISExpress",
       "launchBrowser": true,
       "launchUrl": "swagger",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
+        "environmentVariables": {
+            "ASPNETCORE_ENVIRONMENT": "Development",
+            "ADMIN_EMAIL": "admin@clinic.com",
+            "ADMIN_PASSWORD": "Admin_123"
+        }
     }
   }
 }

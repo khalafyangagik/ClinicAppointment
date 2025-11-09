@@ -16,7 +16,6 @@ public class DoctorNotesController : ControllerBase
         _publish = publish;
     }
 
-
     [HttpPost]
     public async Task<IActionResult> Post([FromBody] CreateNoteDto note)
     {

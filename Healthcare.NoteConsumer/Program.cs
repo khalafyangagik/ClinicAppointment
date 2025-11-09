@@ -5,8 +5,13 @@ using Healthcare.NoteConsumer;
 IHost host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) =>
     {
-        // SQL Server connection string (փոխիր քո տվյալներով)
-        var conn = "Server=localhost;Database=HealthcareDB;Trusted_Connection=True;TrustServerCertificate=True;";
+        // ⛳️ կարդում ենք connection string-ը ENV-ից
+        var conn = Environment.GetEnvironmentVariable("ConnectionStrings__Default")
+                   ?? "Server=localhost;Database=HealthcareDB;Trusted_Connection=True;TrustServerCertificate=True;";
+
+        // ⛳️ կարդում ենք RabbitMQ-ի host-ը ENV-ից
+        var rabbitHost = Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "localhost";
+
         services.AddDbContext<AppDbContext>(opt => opt.UseSqlServer(conn));
 
         services.AddMassTransit(x =>
@@ -15,7 +20,7 @@ IHost host = Host.CreateDefaultBuilder(args)
 
             x.UsingRabbitMq((ctx, cfg) =>
             {
-                cfg.Host("localhost", "/", h =>
+                cfg.Host(rabbitHost, "/", h =>
                 {
                     h.Username("guest");
                     h.Password("guest");
