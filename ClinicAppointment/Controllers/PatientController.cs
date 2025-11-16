@@ -12,12 +12,10 @@ namespace ClinicAppointment.Controllers
     public class PatientsController : ControllerBase
     {
         private readonly IPatientService _patientService;
-        private readonly IMapper _mapper;
 
-        public PatientsController(IPatientService patientService,IMapper mapper)
+        public PatientsController(IPatientService patientService)
         {
             _patientService = patientService;
-            _mapper = mapper;
         }
 
 

@@ -5,37 +5,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Repositories
 {
-    public class PatientRepository : IRepository<Patient>
+    public class PatientRepository : GenericRepository<Patient>, IPatientRepository
     {
-        private readonly ClinicDbContext _dbcontext;
-        public PatientRepository(ClinicDbContext dbcontext)
-        {
-            _dbcontext = dbcontext;
-        }
+        public PatientRepository(ClinicDbContext context)
+            : base(context) { }
 
-        public async Task AddAsync(Patient entity)
+        public async Task<Patient?> GetByUserIdAsync(int userId)
         {
-            await _dbcontext.AddAsync(entity);
-        }
-
-        public void Delete(Patient entity)
-        {
-            _dbcontext.Patients.Remove(entity);
-        }
-
-        public async Task<IEnumerable<Patient>> GetAllAsync()
-        {
-            return await _dbcontext.Patients.ToListAsync();
-        }
-
-        public async Task<Patient?> GetByIdAsync(int id)
-        {
-            return await _dbcontext.Patients.FindAsync(id);
-        }
-
-        public void Update(Patient entity)
-        {
-            _dbcontext.Patients.Update(entity);
+            return await _context.Patients
+                .FirstOrDefaultAsync(p => p.AppUserId == userId);
         }
     }
 }

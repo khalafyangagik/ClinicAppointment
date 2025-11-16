@@ -10,7 +10,6 @@ namespace Domain.IServices
         Task<IEnumerable<Clinic>> GetAllAsync();
         Task UpdateAsync(Clinic entity);
         Task DeleteAsync(Clinic entity);
-        Task<IEnumerable<Doctor>> GetDoctorsBySpecialityAsync(int clinicId,string speciality);
 
     }
 }

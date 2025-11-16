@@ -1,10 +1,8 @@
 ﻿using System.Security.Claims;
 using Domain.DTOs;
 using Domain.IServices;
-using Infrastructure.DbContextFolder;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace ClinicAppointment.Controllers
 {
@@ -12,14 +10,11 @@ namespace ClinicAppointment.Controllers
     [Route("api/[controller]")]
     public class AvailabilitySlotController : ControllerBase
     {
-        private readonly ClinicDbContext _dbContext;
         private readonly ISlotGeneratorService _slotGenerator;
 
-        public AvailabilitySlotController(ClinicDbContext dbContext, ISlotGeneratorService slotGenerator)
+        public AvailabilitySlotController(ISlotGeneratorService slotGenerator)
         {
-            _dbContext = dbContext;
             _slotGenerator = slotGenerator;
-
         }
 
 

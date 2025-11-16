@@ -5,41 +5,47 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Repositories
 {
-    public class SlotRepository : IRepository<AvailabilitySlot>
+    public class SlotRepository : GenericRepository<AvailabilitySlot>, ISlotRepository
     {
-        private readonly ClinicDbContext _dbContext;
-        public SlotRepository(ClinicDbContext dbContext)
+        public SlotRepository(ClinicDbContext context)
+            : base(context)
         {
-            _dbContext = dbContext;
         }
 
-        public async Task AddAsync(AvailabilitySlot entity)
+        public async Task<IEnumerable<AvailabilitySlot>> GetAllWithDoctorAsync()
         {
-            await _dbContext.AvailabilitySlots.AddAsync(entity);
+            return await _context.AvailabilitySlots
+                                 .Include(s => s.Doctor)
+                                 .ToListAsync();
         }
 
-        public void Delete(AvailabilitySlot entity)
+        public async Task<AvailabilitySlot?> GetByIdWithDoctorAsync(int id)
         {
-            _dbContext.AvailabilitySlots.Remove(entity);
+            return await _context.AvailabilitySlots
+                                 .Include(s => s.Doctor)
+                                 .FirstOrDefaultAsync(s => s.Id == id);
         }
 
-        public async Task<IEnumerable<AvailabilitySlot>> GetAllAsync()
+        public async Task<IEnumerable<AvailabilitySlot>> GetScheduleAsync(int doctorId,DateTime? date = null,int page = 1,int pageSize = 5)
         {
-            return await _dbContext.AvailabilitySlots
-                                  .Include(s => s.Doctor) 
-                                  .ToListAsync();
-        }
+            var query = _context.AvailabilitySlots
+                .Where(s => s.DoctorId == doctorId);
 
-        public async Task<AvailabilitySlot?> GetByIdAsync(int id)
-        {
-            return await _dbContext.AvailabilitySlots
-                                   .Include(s => s.Doctor)
-                                   .FirstOrDefaultAsync(s => s.Id == id);
-        }
+            // Date filter
+            if (date.HasValue)
+            {
+                query = query.Where(s => s.StartUtc.Date == date.Value.Date);
+            }
 
-        public void Update(AvailabilitySlot entity)
-        {
-            _dbContext.AvailabilitySlots.Update(entity);
+            // Pagination
+            query = query
+                .OrderBy(s => s.StartUtc)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize);
+
+            return await query.ToListAsync();
         }
     }
+
 }
+

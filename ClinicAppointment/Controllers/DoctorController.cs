@@ -9,7 +9,6 @@ namespace ClinicAppointment.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin")]
     public class DoctorsController : ControllerBase
     {
         private readonly IDoctorService _doctorService;
@@ -22,7 +21,7 @@ namespace ClinicAppointment.Controllers
             _logger = logger;
             _mapper = mapper;
         }
-
+        [Authorize]
         [HttpPost("create")]
         public async Task<IActionResult> CreateDoctor([FromBody] CreateDoctorDto dto)
         {
@@ -98,6 +97,13 @@ namespace ClinicAppointment.Controllers
                 _logger.LogError(ex, "Error while deleting doctor.");
                 return StatusCode(500, new { Error = "Failed to delete doctor." });
             }
+        }
+        [HttpGet("by-speciality")]
+        public async Task<IActionResult> GetBySpeciality(int clinicId, string speciality)
+        {
+            var doctors = await _doctorService.GetDoctorsBySpecialityAsync(clinicId, speciality);
+
+            return Ok(doctors);
         }
     }
 }

@@ -1,0 +1,33 @@
+﻿@page "/login"
+@using ClinicClient.Auth
+@using ClinicClient.Services
+@inject AuthApi AuthApi
+@inject CustomAuthStateProvider Auth
+@inject NavigationManager Nav
+
+<h3>Login</h3>
+
+<input class="form-control" @bind="email" placeholder="Email" />
+<input class="form-control" @bind="password" placeholder="Password" type="password" />
+
+<button class="btn btn-primary mt-3" @onclick="DoLogin">Login</button>
+
+@code {
+    string email = "";
+    string password = "";
+
+    async Task DoLogin()
+    {
+        var token = await AuthApi.LoginAsync(email, password);
+
+        if (token is null)
+        {
+            Console.WriteLine("Login failed");
+            return;
+        }
+
+        await Auth.LoginAsync(token);
+
+        Nav.NavigateTo("/clinics");
+    }
+}

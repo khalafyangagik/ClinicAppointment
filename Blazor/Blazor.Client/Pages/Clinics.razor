@@ -1,0 +1,28 @@
+﻿@page "/clinics"
+@using ClinicClient.Services
+@inject ClinicApi Api
+
+<h3>Clinics</h3>
+
+@if (clinics is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <ul>
+        @foreach (var c in clinics)
+        {
+            <li>@c.Name</li>
+        }
+    </ul>
+}
+
+@code {
+    List<ClinicDto>? clinics;
+
+    protected override async Task OnInitializedAsync()
+    {
+        clinics = await Api.GetAllAsync();
+    }
+}

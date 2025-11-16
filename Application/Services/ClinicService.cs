@@ -1,10 +1,9 @@
-﻿using Domain.DTOs;
+﻿using AutoMapper;
+using Domain.DTOs;
 using Domain.IRepository;
 using Domain.IServices;
 using Domain.Models;
 using Infrastructure.DbContextFolder;
-using Microsoft.EntityFrameworkCore;
-using AutoMapper;
 namespace Application.Services
 {
     public class ClinicService : IClinicService
@@ -12,12 +11,14 @@ namespace Application.Services
         private readonly ClinicDbContext _dbContext;
         private readonly IRepository<Clinic> _clinicRepo;
         private readonly IMapper _mapper;
+        private readonly IDoctorRepository _doctorRepository;
 
-        public ClinicService(ClinicDbContext dbContext, IRepository<Clinic> clinicRepo, IMapper mapper)
+        public ClinicService(ClinicDbContext dbContext, IRepository<Clinic> clinicRepo, IMapper mapper, IDoctorRepository doctorRepository)
         {
             _dbContext = dbContext;
             _clinicRepo = clinicRepo;
             _mapper = mapper;
+            _doctorRepository = doctorRepository;
         }
 
         public async Task AddAsync(CreateClinicDto dto)
@@ -45,14 +46,6 @@ namespace Application.Services
             return await _clinicRepo.GetByIdAsync(id);
         }
 
-        public async Task<IEnumerable<Doctor>> GetDoctorsBySpecialityAsync(int clinicId, string speciality)
-        {
-            return await _dbContext.Doctors
-                                         .Include(d => d.AppUser) // որ բերի նաև UserName, Email, և այլն
-                                         .Where(d => d.ClinicId == clinicId && d.Speciality == speciality)
-                                         .ToListAsync();
-
-        }
 
         public async Task UpdateAsync(Clinic entity)
         {

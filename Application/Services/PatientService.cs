@@ -1,37 +1,29 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using AutoMapper;
+﻿using AutoMapper;
 using Domain.DTOs;
 using Domain.IRepository;
 using Domain.IServices;
 using Domain.Models;
 using Infrastructure.DbContextFolder;
-using Microsoft.EntityFrameworkCore;
 
 namespace Application.Services
 {
     public class PatientService : IPatientService
     {
         private readonly IRepository<Patient> _patientRepo;
-        private readonly IRepository<Appointment> _appointmentRepo;
-        private readonly IRepository<Note> _noteRepo;
         private readonly ClinicDbContext _dbContext;
         private readonly IMapper _mapper;
+        private readonly IAppointmentRepository _appointmentRepository;
+        private readonly INoteRepository _noteRepository;
 
         public PatientService(
             IRepository<Patient> patientRepo,
-            IRepository<Appointment> appointmentRepo,
-            IRepository<Note> noteRepo,
-            ClinicDbContext dbContext,IMapper mapper)
+            ClinicDbContext dbContext,IMapper mapper, IAppointmentRepository appointmentRepository, INoteRepository noteRepository)
         {
             _patientRepo = patientRepo;
-            _appointmentRepo = appointmentRepo;
-            _noteRepo = noteRepo;
             _dbContext = dbContext;
             _mapper = mapper;
+            _appointmentRepository = appointmentRepository;
+            _noteRepository = noteRepository;
         }
 
         // ---------------- CRUD ----------------
@@ -69,32 +61,12 @@ namespace Application.Services
 
         public async Task<IEnumerable<Appointment>> GetAppointmentsAsync(int patientId, int page = 1, int pageSize = 5)
         {
-            var query = _dbContext.Appointments
-                .Include(a => a.Doctor)
-                .Include(a => a.Slot)
-                .Where(a => a.PatientId == patientId)
-                .OrderByDescending(a => a.StartUtc);
-
-            // pagination logic
-            return await query
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
+            return await _appointmentRepository.GetAppointmentsByPatientPagedAsync(patientId, page, pageSize);
         }
 
-        /// <summary>
-        /// Բերում է բոլոր note-երը, որոնք բժիշկները գրել են տվյալ հիվանդի appointment-ների համար։
-        /// </summary>
         public async Task<IEnumerable<Note>> GetDoctorNotesAsync(int patientId)
         {
-            var notes = await _dbContext.Notes
-                .Include(n => n.Appointment)
-                .ThenInclude(a => a.Doctor)
-                .Where(n => n.Appointment.PatientId == patientId)
-                .OrderByDescending(n => n.Appointment.StartUtc)
-                .ToListAsync();
-
-            return notes;
+            return await _noteRepository.GetNotesByPatientAsync(patientId);
         }
     }
 }

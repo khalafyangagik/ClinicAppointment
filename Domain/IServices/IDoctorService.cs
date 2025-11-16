@@ -1,4 +1,5 @@
 ﻿using Domain.DTOs;
+using Domain.IRepository;
 using Domain.Models;
 
 namespace Domain.IServices
@@ -15,5 +16,6 @@ namespace Domain.IServices
         Task AddNoteForPatient(Note note);
         Task<IEnumerable<AvailabilitySlot>> GetScheduleAsync(int doctorId,DateTime? date = null,int page = 1,int pageSize = 5);
 
+        public Task<IEnumerable<Doctor>> GetDoctorsBySpecialityAsync(int clinicId, string speciality);
     }
 }

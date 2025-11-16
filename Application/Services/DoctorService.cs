@@ -4,25 +4,23 @@ using Domain.IRepository;
 using Domain.IServices;
 using Domain.Models;
 using Infrastructure.DbContextFolder;
+using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace Application.Services
     {
         public class DoctorService : IDoctorService
         {
-            private readonly IRepository<Doctor> _doctorRepo;
-            private readonly IRepository<AvailabilitySlot> _slotRepo;
+            private readonly IDoctorRepository _doctorRepo;
+            private readonly ISlotRepository _slotRepo;
             private readonly IRepository<Note> _noteRepo;
             private readonly ClinicDbContext _dbContext;
             private readonly IUnitOfWork _unitOfWork;
             private readonly IMapper _mapper;
+            private readonly IDoctorRepository _doctorRepository;
 
-            public DoctorService(
-                IRepository<Doctor> doctorRepo,
-                IRepository<AvailabilitySlot> slotRepo,
-                IRepository<Note> noteRepo,
-                ClinicDbContext dbContext,
-                IUnitOfWork unitOfWork,IMapper mapper)
+            public DoctorService(IDoctorRepository doctorRepo,ISlotRepository slotRepo,IRepository<Note> noteRepo,ClinicDbContext dbContext,
+                IUnitOfWork unitOfWork,IMapper mapper, IDoctorRepository doctorRepository)
             {
                 _doctorRepo = doctorRepo;
                 _slotRepo = slotRepo;
@@ -30,6 +28,7 @@ namespace Application.Services
                 _dbContext = dbContext;
                 _unitOfWork = unitOfWork;
                 _mapper = mapper;
+                _doctorRepository = doctorRepository;
             }
 
 
@@ -99,7 +98,7 @@ namespace Application.Services
 
             public async Task AddNoteForPatient(Note note)
             {
-                // Սա արդեն բիզնես գործողություն է (կապ Appointment-ի հետ)
+
                 await _unitOfWork.BeginTransactionAsync();
                 try
                 {
@@ -120,25 +119,16 @@ namespace Application.Services
                 }
             }
 
-            public async Task<IEnumerable<AvailabilitySlot>> GetScheduleAsync(int doctorId,DateTime? date = null,int page = 1,int pageSize = 5)
-            {
-                var query = _dbContext.AvailabilitySlots
-                    .Where(s => s.DoctorId == doctorId);
-
-                // Ֆիլտր ըստ ամսաթվի
-                if (date.HasValue)
-                {
-                    query = query.Where(s => s.StartUtc.Date == date.Value.Date);
-                }
-
-                // Էջավորում
-                query = query
-                    .OrderBy(s => s.StartUtc)
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize);
-
-                return await query.ToListAsync();
-            }
+        public async Task<IEnumerable<AvailabilitySlot>> GetScheduleAsync(
+            int doctorId, DateTime? date = null, int page = 1, int pageSize = 5)
+        {
+            return await _slotRepo.GetScheduleAsync(doctorId, date, page, pageSize);
         }
+
+        public async Task<IEnumerable<Doctor>> GetDoctorsBySpecialityAsync(int clinicId, string speciality)
+        {
+            return await _doctorRepository.GetByClinicAndSpecialityAsync(clinicId, speciality);
+        }
+    }
         }
     

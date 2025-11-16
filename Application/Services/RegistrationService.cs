@@ -1,9 +1,9 @@
-﻿using Domain.IServices;
-using Domain.DTOs;
+﻿using Domain.DTOs;
+using Domain.IRepository;
+using Domain.IServices;
 using Domain.Models;
 using Infrastructure.DbContextFolder;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace Application.Services
 {
@@ -11,13 +11,18 @@ namespace Application.Services
     {
         private readonly ClinicDbContext _dbContext;
         private readonly UserManager<ApplicationUser> _userManager;
-
+        private readonly IClinicRepository _clinicRepository;
+        private readonly IDoctorRepository _doctorRepository;
+        private readonly IPatientRepository _patientRepository;
         public RegistrationService(
             ClinicDbContext dbContext,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager, IClinicRepository clinicRepository, IDoctorRepository doctorRepository, IPatientRepository petientRepository)
         {
             _dbContext = dbContext;
             _userManager = userManager;
+            _clinicRepository = clinicRepository;
+            _doctorRepository = doctorRepository;
+            _patientRepository = petientRepository;
         }
 
         // ✅ Register Doctor
@@ -30,7 +35,7 @@ namespace Application.Services
 
             try
             {
-                var clinic = await _dbContext.Clinics.FindAsync(dto.ClinicId);
+                var clinic = await _clinicRepository.GetByIdAsync(dto.ClinicId);
                 if (clinic == null)
                     return (false, "Clinic not found.");
 
@@ -38,8 +43,7 @@ namespace Application.Services
                 if (existingUser != null)
                     return (false, "This email is already used.");
 
-                var doctor = await _dbContext.Doctors
-                    .FirstOrDefaultAsync(d => d.AppUserId == null && d.ClinicId == dto.ClinicId);
+                var doctor = await _doctorRepository.GetUnassignedDoctorByClinicAsync(dto.ClinicId);
 
                 if (doctor == null)
                     return (false, "Doctor not found for this clinic or already registered.");
@@ -110,7 +114,7 @@ namespace Application.Services
                     Phone = dto.Phone
                 };
 
-                _dbContext.Patients.Add(patient);
+                await _patientRepository.AddAsync(patient);
                 await _dbContext.SaveChangesAsync();
 
                 await transaction.CommitAsync();

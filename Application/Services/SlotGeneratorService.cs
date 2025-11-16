@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Domain.IServices;
+﻿using Domain.IServices;
 using Domain.Models;
 using Infrastructure.DbContextFolder;
 using Microsoft.EntityFrameworkCore;

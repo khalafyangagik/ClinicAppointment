@@ -6,36 +6,22 @@ using Microsoft.EntityFrameworkCore;
 namespace Infrastructure.Repositories
 {
 
-    public class NoteRepository : IRepository<Note>
+    public class NoteRepository : GenericRepository<Note>,INoteRepository
     {
-        private readonly ClinicDbContext _dbContext;
-        public NoteRepository(ClinicDbContext dbContext)
+        public NoteRepository(ClinicDbContext context)
+            : base(context)
         {
-            _dbContext = dbContext;
-        }
-        public async Task AddAsync(Note entity)
-        {
-            await _dbContext.Notes.AddAsync(entity);
         }
 
-        public void Delete(Note entity)
+        public async Task<IEnumerable<Note>> GetNotesByPatientAsync(int patientId)
         {
-            _dbContext.Notes.Remove(entity);
-        }
-
-        public async Task<IEnumerable<Note>> GetAllAsync()
-        {
-            return await _dbContext.Notes.ToListAsync();
-        }
-
-        public async Task<Note?> GetByIdAsync(int id)
-        {
-            return await _dbContext.Notes.FindAsync(id);
-        }
-
-        public void Update(Note entity)
-        {
-            _dbContext.Notes.Update(entity);
+            return await _context.Notes
+                .Include(n => n.Appointment)
+                .ThenInclude(a => a.Doctor)
+                .Where(n => n.Appointment.PatientId == patientId)
+                .OrderByDescending(n => n.Appointment.StartUtc)
+                .ToListAsync();
         }
     }
 }
+

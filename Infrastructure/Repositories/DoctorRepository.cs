@@ -5,41 +5,48 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Repositories
 {
-    public class DoctorRepository : IRepository<Doctor>
+    public class DoctorRepository
+        : GenericRepository<Doctor>, IDoctorRepository
     {
-        private readonly ClinicDbContext _dbcontext;
-        public DoctorRepository(ClinicDbContext dbcontext)
+        public DoctorRepository(ClinicDbContext context)
+            : base(context) 
         {
-            _dbcontext = dbcontext;
         }
 
-        public async Task AddAsync(Doctor entity)
+        public async Task<IEnumerable<Doctor>> GetDoctorsWithClinicAsync()
         {
-            await _dbcontext.Doctors.AddAsync(entity);
+            return await _context.Doctors
+                                 .Include(d => d.Clinic)
+                                 .ToListAsync();
         }
 
-        public void Delete(Doctor entity)
+        public async Task<Doctor?> GetByIdWithClinicAsync(int id)
         {
-            _dbcontext.Doctors.Remove(entity);
+            return await _context.Doctors
+                                 .Include(d => d.Clinic)
+                                 .FirstOrDefaultAsync(d => d.Id == id);
         }
 
-        public async Task<IEnumerable<Doctor>> GetAllAsync()
+        public async Task<Doctor?> GetByUserIdAsync(int userId)
         {
-            return await _dbcontext.Doctors
-                                   .Include(d => d.Clinic)
-                                   .ToListAsync();
+            return await _context.Doctors
+                .Include(d => d.Clinic)
+                .FirstOrDefaultAsync(d => d.AppUserId == userId);
         }
 
-        public async Task<Doctor?> GetByIdAsync(int id)
+        public async Task<IEnumerable<Doctor>> GetByClinicAndSpecialityAsync(int clinicId, string speciality)
         {
-            return await _dbcontext.Doctors
-                                   .Include(d => d.Clinic)
-                                   .FirstOrDefaultAsync(d => d.Id == id);
+            return await _context.Doctors
+                .Include(d => d.AppUser) 
+                .Where(d => d.ClinicId == clinicId && d.Speciality == speciality)
+                .ToListAsync();
         }
 
-        public void Update(Doctor entity)
+        public async Task<Doctor?> GetUnassignedDoctorByClinicAsync(int clinicId)
         {
-            _dbcontext.Doctors.Update(entity);
+            return await _context.Doctors
+                .FirstOrDefaultAsync(d => d.AppUserId == null && d.ClinicId == clinicId);
         }
     }
+
 }

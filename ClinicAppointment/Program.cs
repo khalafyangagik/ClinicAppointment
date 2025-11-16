@@ -1,12 +1,9 @@
-﻿
-using System.Text;
+﻿using System.Text;
+using Application.DependencyInjection;
 using Application.Helpers;
-using Application.Services;
-using Domain.IRepository;
-using Domain.IServices;
 using Domain.Models;
 using Infrastructure.DbContextFolder;
-using Infrastructure.Repositories;
+using Infrastructure.DependencyInjection;
 using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -26,7 +23,6 @@ namespace ClinicAppointment
             var defaultConn = Environment.GetEnvironmentVariable("ConnectionStrings__Default")
                              ?? builder.Configuration.GetConnectionString("Default");
 
-            // MassTransit
             builder.Services.AddMassTransit(x =>
             {
                 x.UsingRabbitMq((ctx, cfg) =>
@@ -41,7 +37,6 @@ namespace ClinicAppointment
 
             builder.Services.AddDbContext<ClinicDbContext>(options =>
             options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
 
             builder.Services.AddIdentity<ApplicationUser, IdentityRole<int>>()
                 .AddEntityFrameworkStores<ClinicDbContext>()
@@ -76,24 +71,11 @@ namespace ClinicAppointment
                 };
             });
 
-            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-            builder.Services.AddScoped<IRepository<Doctor>, DoctorRepository>();
-            builder.Services.AddScoped<IRepository<Clinic>, ClinicRepository>();
-            builder.Services.AddScoped<IRepository<Patient>, PatientRepository>();
-            builder.Services.AddScoped<IRepository<Appointment>, AppointmentRepository>();
-            builder.Services.AddScoped<IRepository<AvailabilitySlot>, SlotRepository>();
-            builder.Services.AddScoped<IRepository<Note>, NoteRepository>();
+            builder.Services.AddAppRepositories();
             builder.Services.AddAutoMapper(typeof(Domain.MappingProfies.MappingProfile));
 
 
-
-            builder.Services.AddScoped<IClinicService, ClinicService>();
-            builder.Services.AddScoped<IDoctorService, DoctorService>();
-            builder.Services.AddScoped<IPatientService, PatientService>();
-            builder.Services.AddScoped<IAppointmentService, AppointmentService>();
-            builder.Services.AddScoped<IRegistrationService, RegistrationService>();
-            builder.Services.AddScoped<ISlotGeneratorService, SlotGeneratorService>();
-
+            builder.Services.AddAppServices();
             builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
